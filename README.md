@@ -2,6 +2,8 @@
 
 A lightweight, real-time process monitoring tool for the terminal. Like `top` or `htop`, but focused on filtering and watching specific processes with a clean, color-coded display.
 
+![WatchProc Screenshot](watchproc_screenshot.png)
+
 ## Features
 
 - **Live refresh** with configurable interval
