@@ -406,11 +406,13 @@ func display(pattern string, exactMatch bool, firstRun bool) {
 		clearLine()
 	}
 
+	// 이전 프레임보다 프로세스 수가 줄었을 때 남은 행 제거
+	clearToEnd()
+
 	// Footer
 	fmt.Println()
 	fmt.Printf("  \033[90mp:pause  q:quit\033[0m")
 	clearLine()
-	clearToEnd()
 }
 
 func printPlainSnapshot(procs []ProcessInfo) {
