@@ -11,6 +11,14 @@ import (
 	"unsafe"
 )
 
+// Special key constants
+const (
+	KeyUp    byte = 0x80
+	KeyDown  byte = 0x81
+	KeyLeft  byte = 0x82
+	KeyRight byte = 0x83
+)
+
 var savedTermState string
 
 func setupConsole() {
@@ -62,6 +70,32 @@ func readKey() (byte, bool) {
 	n, err := os.Stdin.Read(buf)
 	if err != nil || n == 0 {
 		return 0, false
+	}
+	// ANSI escape sequence: ESC [ A/B/C/D for arrow keys
+	if buf[0] == 0x1b {
+		buf2 := make([]byte, 1)
+		n, err = os.Stdin.Read(buf2)
+		if err != nil || n == 0 {
+			return 27, true
+		}
+		if buf2[0] == '[' {
+			buf3 := make([]byte, 1)
+			n, err = os.Stdin.Read(buf3)
+			if err != nil || n == 0 {
+				return 27, true
+			}
+			switch buf3[0] {
+			case 'A':
+				return KeyUp, true
+			case 'B':
+				return KeyDown, true
+			case 'C':
+				return KeyRight, true
+			case 'D':
+				return KeyLeft, true
+			}
+		}
+		return 27, true
 	}
 	return buf[0], true
 }
