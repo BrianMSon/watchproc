@@ -80,18 +80,88 @@ func disableRawInput() {
 	}
 }
 
+// Special key constants
+const (
+	KeyUp    byte = 0x80
+	KeyDown  byte = 0x81
+	KeyLeft  byte = 0x82
+	KeyRight byte = 0x83
+)
+
+// Windows INPUT_RECORD structures for ReadConsoleInput
+type keyEventRecord struct {
+	bKeyDown         int32
+	wRepeatCount     uint16
+	wVirtualKeyCode  uint16
+	wVirtualScanCode uint16
+	uChar            uint16 // UnicodeChar
+	dwControlKeyState uint32
+}
+
+type inputRecord struct {
+	eventType uint16
+	_         uint16 // padding
+	event     [16]byte
+}
+
+var procReadConsoleInput = kernel32.NewProc("ReadConsoleInputW")
+
+const (
+	_KEY_EVENT = 0x0001
+	_VK_UP     = 0x26
+	_VK_DOWN   = 0x28
+	_VK_LEFT   = 0x25
+	_VK_RIGHT  = 0x27
+	_VK_ESCAPE = 0x1B
+	_VK_RETURN = 0x0D
+)
+
 func readKey() (byte, bool) {
-	buf := make([]byte, 1)
-	n, err := os.Stdin.Read(buf)
-	if err != nil || n == 0 {
-		return 0, false
+	var rec inputRecord
+	var numRead uint32
+
+	for {
+		r, _, _ := procReadConsoleInput.Call(
+			uintptr(stdinHandle),
+			uintptr(unsafe.Pointer(&rec)),
+			1,
+			uintptr(unsafe.Pointer(&numRead)),
+		)
+		if r == 0 || numRead == 0 {
+			return 0, false
+		}
+
+		// KEY_EVENT only, key down only
+		if rec.eventType != _KEY_EVENT {
+			continue
+		}
+		keyEvent := (*keyEventRecord)(unsafe.Pointer(&rec.event[0]))
+		if keyEvent.bKeyDown == 0 {
+			continue
+		}
+
+		// Virtual key code check
+		switch keyEvent.wVirtualKeyCode {
+		case _VK_UP:
+			return KeyUp, true
+		case _VK_DOWN:
+			return KeyDown, true
+		case _VK_LEFT:
+			return KeyLeft, true
+		case _VK_RIGHT:
+			return KeyRight, true
+		case _VK_ESCAPE:
+			return 27, true
+		case _VK_RETURN:
+			return 13, true
+		}
+
+		// Character key
+		ch := byte(keyEvent.uChar)
+		if ch > 0 {
+			return ch, true
+		}
 	}
-	// Windows: special keys (arrows, F1-F12) start with 0x00 or 0xE0
-	if buf[0] == 0x00 || buf[0] == 0xE0 {
-		os.Stdin.Read(buf) // read and discard scan code
-		return 0, false
-	}
-	return buf[0], true
 }
 
 // getTerminalSize 터미널 크기 가져오기
